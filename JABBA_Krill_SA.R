@@ -1,9 +1,12 @@
+devtools::install_url("http://sourceforge.net/projects/mcmc-jags/files/rjags/4/rjags_4-4.tar.gz",
+                      args="--configure-args='--with-jags-include=/Users/casallas/homebrew/opt/jags/include/JAGS
+--with-jags-lib=/Users/casallas/homebrew/opt/jags/lib'
+"
+)
+
 library(JABBA)
 File = "~/DOCAS/Krill_Spatial_JABBA" # LINK to your folder of choice here
 
-#><>><>><>><>><>><>><>><>><>><>><>
-# Bigeye Tuna ICCAT
-#><>><>><>><>><>><>><>><>><>><>><>
 
 assessment = "BETiccat"
 output.dir = file.path(File,assessment)
