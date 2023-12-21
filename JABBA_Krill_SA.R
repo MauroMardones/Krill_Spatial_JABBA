@@ -1,64 +1,82 @@
-devtools::install_url("http://sourceforge.net/projects/mcmc-jags/files/rjags/4/rjags_4-4.tar.gz",
-                      args="--configure-args='--with-jags-include=/Users/casallas/homebrew/opt/jags/include/JAGS
---with-jags-lib=/Users/casallas/homebrew/opt/jags/lib'
-"
-)
 
 library(JABBA)
+library(tidyverse)
 File = "~/DOCAS/Krill_Spatial_JABBA" # LINK to your folder of choice here
 
+df <- read_csv("~/DOCAS/Krill_Spatial_JABBA/data_krill_jabba.csv") %>% 
+  filter(Year>2000,
+         Year<2019)
 
-assessment = "BETiccat"
+# or
+
+yr = 2001:2018
+ct = c(4981 , 72060 , 15427 , 46456 , 73494   ,3102 , 65591 ,
+       93384  ,91855  ,49999 ,115995,  29040,
+       31306,  72455,  17101,  34302,  69046, 137880)
+it = c(4.163482 , 6.377938  ,5.436893,  4.465801,  2.882375, 11.189135,
+       9.716262  ,3.674545, 10.056334, 12.419098,
+       8.263407,  7.026917,  8.643829 , 9.527634,  8.466477 , 8.907962,
+       8.936349, 10.324057)
+se = rep(0.3, 18)
+df = data.frame(year=yr,ct=ct,bacu=it,itse=se)
+
+assessment = "KrillSP"
 output.dir = file.path(File,assessment)
 dir.create(output.dir,showWarnings = F)
 setwd(output.dir)
-#------------------------------------------------------
-# Simple example fit JABBA to Catch and CPUE with SEs
-#-------------------------------------------------------
-data(iccat)
-# get BET data
-bet = iccat$bet
+
+# Prepara los datos de huepo ----------------------------------------------
+cpue = df[,c(1,3)]
+colnames(cpue) = c("Year", "Bv")
+se = df[,c(1,4)]
+colnames(se) = c("Year", "Bv")
+catch = df[,c(1,2)]
+colnames(catch) = c("Year","Total")
+sau <- list()
+sau$cpue <- cpue
+sau$se <- se
+sau$catch <- catch
+
 # Compile JABBA JAGS model and input object
-jbinput1 = build_jabba(catch=bet$catch,cpue=bet$cpue,se=bet$se,
-                       assessment=assessment,scenario = "Run1",
+m1_input = build_jabba(catch=sau$catch,
+                       cpue=sau$cpue,
+                       se=sau$se,
+                       assessment="caso 1",
+                       scenario = "Fox",
                        model.type = "Fox",
-                       r.prior = c(0.2,0.5),
-                       sigma.est = FALSE, # estimate additional observation error
-                       fixed.obsE = 0.01, # mimum observation error
-                       igamma = c(0.001,0.001), # uninformative inv-gamma for process error
-                       psi.prior = c(1,0.2), # Initial depletion B/K
-                       verbose=F)
+                       sigma.est = FALSE,
+                       igamma = c(0.001,0.001))
 # Check input
-jbplot_indices(jbinput1)
+jbplot_indices(m1_input)
 
 
 # Fit JABBA (here mostly default value - careful)
-bet1 = fit_jabba(jbinput1,quickmcmc = TRUE) # quick run
+sau1 = fit_jabba(m1_input,quickmcmc = TRUE) # quick run
 
-head(bet1$kobe)
+head(sau1$kobe)
 
 # Make individual plots
-jbplot_catch(bet1)
-jbplot_catcherror(bet1)
-jbplot_ppdist(bet1)
-jbplot_mcmc(bet1)
-jbplot_residuals(bet1)
-jbplot_cpuefits(bet1)
-jbplot_runstest(bet1)
-jbplot_logfits(bet1)
-jbplot_procdev(bet1)
-jbplot_PPC(bet1) # Posterior Predictive Checks - Not great should 0.2-0.8
+jbplot_catch(sau1)
+jbplot_catcherror(sau1)
+jbplot_ppdist(sau1)
+jbplot_mcmc(sau1)
+jbplot_residuals(sau1)
+jbplot_cpuefits(sau1)
+jbplot_runstest(sau1)
+jbplot_logfits(sau1)
+jbplot_procdev(sau1)
+jbplot_PPC(sau1) # Posterior Predictive Checks - Not great should 0.2-0.8
 
 # Status
-jbplot_summary(bet1)
+jbplot_summary(sau1)
 # combine plots
 jbpar(mfrow=c(2,2))
-jbplot_summary(bet1,add=T,type = c("BBmsy", "FFmsy"))
-jbplot_spphase(bet1,add=T)
-jbplot_kobe(bet1,add=T)
+jbplot_summary(sau1,add=T,type = c("BBmsy", "FFmsy"))
+jbplot_spphase(sau1,add=T)
+jbplot_kobe(sau1,add=T)
 
 jbpar(mfrow=c(3,2),plot.cex = 0.8)
-jbplot_ensemble(bet1)
+jbplot_ensemble(sau1)
 
 # Try to improve runs test diagnostics by changing the variance settings
 # Increase minimum obs error from 0.01 to 0.1 and remove SEs from CPUE model
@@ -78,8 +96,8 @@ jbplot_PPC(bet2)
 refinput = jbinput2 # Note as reference input 
 
 # Compare
-jbplot_summary(list(Run1=bet1,Run2=bet2))
-jbplot_ensemble(list(Run1=bet1,Run2=bet2))
+jbplot_summary(list(Run1=sau1,Run2=bet2))
+jbplot_ensemble(list(Run1=sau1,Run2=bet2))
 
 # Check parameters and convergence (p <0.05 is not fully converged)
 bet2$pars 
@@ -131,9 +149,9 @@ bet4 = fit_jabba(jbinput4,quickmcmc=T)
 
 # Compare 
 jbpar(mfrow=c(3,2),plot.cex=0.7)
-jbplot_ensemble(list(bet1,bet2,bet3,bet4))
+jbplot_ensemble(list(sau1,bet2,bet3,bet4))
 jbpar(mfrow=c(3,2),plot.cex=0.6)
-jbplot_summary(list(bet1,bet2,bet3,bet4),add=T)
+jbplot_summary(list(sau1,bet2,bet3,bet4),add=T)
 
 #----------------------------------------------------
 # Do some forecasting
